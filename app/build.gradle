@@ -1,0 +1,34 @@
+plugins { id 'com.android.application' }
+
+def ks = file('release.keystore')
+def buildNum = (System.getenv('GITHUB_RUN_NUMBER') ?: '1') as int
+
+android {
+    namespace 'com.m9r1u5.wpm'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'com.m9r1u5.wpm'
+        minSdk 24
+        targetSdk 34
+        versionCode buildNum
+        versionName "1.0.${buildNum}"
+    }
+    sourceSets { main { assets.srcDirs = ['../web'] } }
+    signingConfigs {
+        release {
+            if (ks.exists()) {
+                storeFile ks
+                storePassword System.getenv('KS_PASS')
+                keyAlias 'wpm'
+                keyPassword System.getenv('KS_PASS')
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig ks.exists() ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
