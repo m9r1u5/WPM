@@ -21,7 +21,7 @@ jobs:
         env:
           KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
         run: |
-          if [ -n "$KS_B64" ]; then echo "$KS_B64" | base64 -d > app/release.keystore; echo "Signing with permanent key"; else echo "No key secret - using debug signing"; fi
+          if [ -n "$KS_B64" ]; then printf "%s" "$KS_B64" | tr -d " \r\n" | base64 -d > app/release.keystore; echo "Signing with permanent key"; else echo "No key secret - using debug signing"; fi
       - name: Build
         env:
           KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}

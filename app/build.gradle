@@ -18,9 +18,9 @@ android {
         release {
             if (ks.exists()) {
                 storeFile ks
-                storePassword System.getenv('KS_PASS')
+                storePassword System.getenv('KS_PASS')?.trim()
                 keyAlias 'wpm'
-                keyPassword System.getenv('KS_PASS')
+                keyPassword System.getenv('KS_PASS')?.trim()
             }
         }
     }
