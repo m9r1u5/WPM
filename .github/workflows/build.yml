@@ -20,7 +20,9 @@ jobs:
       - name: Restore signing key
         env:
           KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
         run: |
+          if [ -n "$KS_PASS" ] && [ -z "$KS_B64" ]; then echo "::error::ANDROID_KEYSTORE_B64 secret is missing - add it so updates install over the old app"; exit 1; fi
           if [ -n "$KS_B64" ]; then printf "%s" "$KS_B64" | tr -d " \r\n" | base64 -d > app/release.keystore; echo "Signing with permanent key"; else echo "No key secret - using debug signing"; fi
       - name: Build
         env:
