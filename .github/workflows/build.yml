@@ -37,4 +37,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="v1.0.${{ github.run_number }}"
-          gh release create "$TAG" WPM.apk --title "WPM $TAG" --notes "Download WPM.apk on your phone and install it." --latest
+          for i in 1 2 3 4; do
+            if gh release view "$TAG" >/dev/null 2>&1; then gh release upload "$TAG" WPM.apk --clobber && exit 0
+            else gh release create "$TAG" WPM.apk --title "WPM $TAG" --notes "Download WPM.apk on your phone and install it, or use Settings > Check for updates in the app." --latest && exit 0; fi
+            echo "GitHub error, retrying in 15s"; sleep 15
+          done
+          exit 1

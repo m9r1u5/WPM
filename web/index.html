@@ -36,6 +36,29 @@ canvas{display:block}
 .roster{display:grid;grid-template-columns:auto auto;gap:4px 14px;font-size:12px;text-align:left}
 .roster span:nth-child(odd){font-weight:700}
 @keyframes blink{50%{opacity:.25}}
+.joy{position:relative;width:var(--j);height:var(--j);border-radius:50%;touch-action:none;
+  background:radial-gradient(circle,#1b1440 0%,#100b24 70%);border:2px solid var(--btnEdge);
+  box-shadow:inset 0 0 0 calc(var(--j)*.18) rgba(138,108,255,.06)}
+.joy::before,.joy::after{content:"";position:absolute;left:50%;top:50%;background:var(--btnEdge);transform:translate(-50%,-50%)}
+.joy::before{width:2px;height:70%}.joy::after{width:70%;height:2px}
+.knob{position:absolute;left:50%;top:50%;width:42%;height:42%;margin:-21% 0 0 -21%;border-radius:50%;z-index:1;
+  background:radial-gradient(circle at 35% 30%,#b7a6ff,#5a3fd6 60%,#2b1c7a);border:2px solid var(--accent);
+  box-shadow:0 4px 14px rgba(0,0,0,.5);transition:transform .12s ease-out}
+.joy.drag .knob{transition:none}
+.panel{background:#100b24;border:2px solid var(--btnEdge);border-radius:18px;padding:18px;width:min(320px,100%);
+  display:flex;flex-direction:column;gap:16px;text-align:left}
+.panel h2{margin:0;font-size:20px;letter-spacing:.2em;color:var(--hero)}
+.row{display:flex;flex-direction:column;gap:8px}
+.label{font-size:11px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.seg button,.wide{appearance:none;font:inherit;font-weight:700;font-size:13px;letter-spacing:.06em;padding:12px 8px;
+  border-radius:12px;border:2px solid var(--btnEdge);background:var(--btn);color:var(--ink);cursor:pointer}
+.seg button[aria-pressed="true"]{background:#2a1f5c;border-color:var(--hero);color:var(--hero)}
+.wide.go{background:#0f3a33;border-color:var(--hero);color:var(--hero)}
+.wide:disabled{opacity:.5}
+.status{font-size:12px;color:var(--dim);line-height:1.5;min-height:1.5em}
+.status.good{color:var(--hero)}.status.bad{color:#ff7a8f}
+button:focus-visible{outline:2px solid var(--hero);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){.big{animation:none}}
 @media (orientation:landscape){#app{flex-direction:row;justify-content:center}#stage{margin:auto 0}#controls{flex:none;width:auto;flex-direction:column;padding:0 18px}}
 </style>
@@ -52,6 +75,20 @@ canvas{display:block}
       <div class="small">Swipe anywhere or use the pad to steer.<br>Grab a power cell and the drones turn hunted.</div>
       <div class="small" id="hiLine"></div>
     </div>
+    <div class="overlay" id="settingsOv" hidden>
+      <div class="panel" role="dialog" aria-label="Settings">
+        <h2>SETTINGS</h2>
+        <div class="row"><span class="label">Controls</span>
+          <div class="seg"><button id="ctlPad" aria-pressed="true">ARROW PAD</button><button id="ctlJoy" aria-pressed="false">JOYSTICK</button></div></div>
+        <div class="row"><span class="label">Sound</span>
+          <div class="seg"><button id="sndOn" aria-pressed="true">ON</button><button id="sndOff" aria-pressed="false">OFF</button></div></div>
+        <div class="row"><span class="label">Updates · <span id="verLbl">version 1.0</span></span>
+          <button class="wide" id="btnCheck">CHECK FOR UPDATES</button>
+          <button class="wide go" id="btnInstall" hidden>DOWNLOAD &amp; INSTALL</button>
+          <div class="status" id="updStatus"></div></div>
+        <button class="wide" id="btnClose">CLOSE</button>
+      </div>
+    </div>
     <div class="overlay" id="pausedOv" hidden>
       <div class="logo" style="font-size:44px">PAUSED</div>
       <div class="big">TAP TO RESUME</div>
@@ -65,9 +102,10 @@ canvas{display:block}
       <button class="r" data-d="R" aria-label="Right">▶</button>
       <button class="d" data-d="D" aria-label="Down">▼</button>
     </div>
+    <div class="joy" id="joy" hidden aria-label="Joystick"><div class="knob" id="knob"></div></div>
     <div class="side">
       <button id="btnPause">PAUSE</button>
-      <button id="btnSound">SOUND</button>
+      <button id="btnSettings" aria-label="Settings">⚙ SET</button>
     </div>
   </div>
 </div>
@@ -121,6 +159,7 @@ function resize(){
   stage.style.width=cw+'px';stage.style.height=chh+'px';
   const b=land?Math.min(76,(vh-60)/4.2):Math.min(78,(ctrl.h-24)/3.1,(vw-120)/3.4);
   pad.style.setProperty('--b',Math.max(40,b)+'px');
+  document.getElementById('joy').style.setProperty('--j',Math.max(130,b*3.2)+'px');
   buildMaze();
 }
 function layer(m,color,lvl){
@@ -470,7 +509,7 @@ addEventListener('keydown',e=>{
   else if((e.code==='Enter'||e.code==='Space')&&S.state==='title')start();
 });
 let sx=0,sy=0,swiping=false;
-document.addEventListener('touchstart',e=>{const t=e.touches[0];sx=t.clientX;sy=t.clientY;swiping=true;},{passive:true});
+document.addEventListener('touchstart',e=>{if(e.target.closest('#controls,#settingsOv')){swiping=false;return;}const t=e.touches[0];sx=t.clientX;sy=t.clientY;swiping=true;},{passive:true});
 document.addEventListener('touchmove',e=>{if(!swiping)return;const t=e.touches[0],dx=t.clientX-sx,dy=t.clientY-sy;
   if(Math.max(Math.abs(dx),Math.abs(dy))>18){steer(Math.abs(dx)>Math.abs(dy)?(dx>0?'R':'L'):(dy>0?'D':'U'));sx=t.clientX;sy=t.clientY;}},{passive:true});
 document.addEventListener('touchend',()=>{swiping=false;},{passive:true});
@@ -485,10 +524,69 @@ titleOv.addEventListener('pointerdown',e=>{e.preventDefault();start();});
 function togglePause(){if(S.state==='title')return;S.paused=!S.paused;pausedOv.hidden=!S.paused;}
 pausedOv.addEventListener('pointerdown',e=>{e.preventDefault();togglePause();});
 document.getElementById('btnPause').addEventListener('click',togglePause);
-const sb=document.getElementById('btnSound');
-function paintSound(){sb.textContent=soundOn?'SOUND':'MUTED';sb.style.opacity=soundOn?1:.6;}
-sb.addEventListener('click',()=>{audio();soundOn=!soundOn;try{localStorage.setItem('wpm.sound',soundOn?'1':'0');}catch(e){}paintSound();});
-paintSound();
+/* ---------- Settings ---------- */
+const $=id=>document.getElementById(id);
+const settingsOv=$('settingsOv'),joy=$('joy'),knob=$('knob');
+let ctlMode='pad';try{ctlMode=localStorage.getItem('wpm.controls')||'pad';}catch(e){}
+let pausedBySettings=false;
+function paintSettings(){
+  $('ctlPad').setAttribute('aria-pressed',ctlMode==='pad');$('ctlJoy').setAttribute('aria-pressed',ctlMode==='joy');
+  $('sndOn').setAttribute('aria-pressed',soundOn);$('sndOff').setAttribute('aria-pressed',!soundOn);
+  pad.hidden=ctlMode!=='pad';joy.hidden=ctlMode!=='joy';
+}
+function setCtl(m){ctlMode=m;try{localStorage.setItem('wpm.controls',m);}catch(e){}paintSettings();}
+function setSnd(on){audio();soundOn=on;try{localStorage.setItem('wpm.sound',on?'1':'0');}catch(e){}paintSettings();if(on)tone(880,.08,'square',.05);}
+$('ctlPad').onclick=()=>setCtl('pad');$('ctlJoy').onclick=()=>setCtl('joy');
+$('sndOn').onclick=()=>setSnd(true);$('sndOff').onclick=()=>setSnd(false);
+function openSettings(){
+  if(S.state!=='title'&&!S.paused){S.paused=true;pausedBySettings=true;}
+  pausedOv.hidden=true;settingsOv.hidden=false;
+}
+function closeSettings(){settingsOv.hidden=true;
+  if(pausedBySettings){pausedBySettings=false;S.paused=false;}else if(S.paused)pausedOv.hidden=false;}
+$('btnSettings').addEventListener('click',openSettings);
+$('btnClose').addEventListener('click',closeSettings);
+settingsOv.addEventListener('pointerdown',e=>{if(e.target===settingsOv)closeSettings();});
+paintSettings();
+
+/* ---------- Joystick ---------- */
+let joyId=null;
+function joyMove(e){
+  const r=joy.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,max=r.width*.32;
+  let dx=e.clientX-cx,dy=e.clientY-cy;const d=Math.hypot(dx,dy);
+  if(d>max){dx*=max/d;dy*=max/d;}
+  knob.style.transform=`translate(${dx}px,${dy}px)`;
+  if(d>r.width*.1){const k=Math.abs(dx)>Math.abs(dy)?(dx>0?'R':'L'):(dy>0?'D':'U');
+    if(S.state==='title')return;steer(k);}
+}
+joy.addEventListener('pointerdown',e=>{e.preventDefault();audio();if(S.state==='title'){start();}
+  joyId=e.pointerId;joy.setPointerCapture(e.pointerId);joy.classList.add('drag');joyMove(e);});
+joy.addEventListener('pointermove',e=>{if(e.pointerId===joyId)joyMove(e);});
+const joyEnd=e=>{if(e.pointerId!==joyId)return;joyId=null;joy.classList.remove('drag');knob.style.transform='';};
+joy.addEventListener('pointerup',joyEnd);joy.addEventListener('pointercancel',joyEnd);
+
+/* ---------- Updates ---------- */
+const NATIVE=window.WPMNative||null,upd=$('updStatus');
+function updMsg(t,cls=''){upd.textContent=t;upd.className='status '+cls;}
+$('verLbl').textContent='version '+(NATIVE?NATIVE.version():'web');
+let updUrl=null;
+window.__wpmUpdate=r=>{
+  $('btnCheck').disabled=false;
+  switch(r.status){
+    case'latest':updMsg('You have the latest version ('+r.latest+').','good');break;
+    case'available':updUrl=r.url;updMsg('Version '+r.latest+' is available. You have '+r.current+'.','good');$('btnInstall').hidden=false;break;
+    case'progress':updMsg('Downloading… '+r.pct+'%');break;
+    case'installing':updMsg('Download done. Follow the prompt to install.','good');$('btnInstall').disabled=false;break;
+    case'permission':updMsg('Allow WPM to install apps on the screen that opened, then tap Download & Install again.','bad');$('btnInstall').disabled=false;break;
+    default:updMsg(r.message||'Could not reach GitHub. Check your internet connection and try again.','bad');$('btnInstall').disabled=false;
+  }
+};
+$('btnCheck').addEventListener('click',()=>{
+  $('btnInstall').hidden=true;
+  if(!NATIVE){updMsg('Updates are checked in the Android app. Latest builds: github.com/m9r1u5/WPM/releases');return;}
+  $('btnCheck').disabled=true;updMsg('Checking GitHub…');NATIVE.checkUpdate();
+});
+$('btnInstall').addEventListener('click',()=>{if(!NATIVE||!updUrl)return;$('btnInstall').disabled=true;updMsg('Starting download…');NATIVE.installUpdate(updUrl);});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&S.state!=='title'&&!S.paused)togglePause();});
 document.getElementById('roster').innerHTML=ROSTER.map(r=>`<span style="color:${r.color}">${r.name}</span><span>${r.role}</span>`).join('');
 addEventListener('resize',resize);
