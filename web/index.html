@@ -344,7 +344,7 @@ function updatePlay(dt){
   // hero
   if(hero.next===opp(hero.dir))hero.dir=hero.next;
   const before=hero.x+hero.y;
-  stepEntity(hero,BASE*dt*(S.fright>0?sp.hf:sp.h),heroCenter);
+  if(ctlMode!=='joy'||joyLive)stepEntity(hero,BASE*dt*(S.fright>0?sp.hf:sp.h),heroCenter);
   if(hero.x+hero.y!==before)hero.anim+=dt*14;
   if(S.state!=='play')return;
   for(const e of enemies)updateEnemy(e,dt,sp);
@@ -550,20 +550,22 @@ settingsOv.addEventListener('pointerdown',e=>{if(e.target===settingsOv)closeSett
 paintSettings();
 
 /* ---------- Joystick ---------- */
-let joyId=null;
+let joyId=null,joyLive=false;
 function joyMove(e){
   const r=joy.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,max=r.width*.32;
   let dx=e.clientX-cx,dy=e.clientY-cy;const d=Math.hypot(dx,dy);
   if(d>max){dx*=max/d;dy*=max/d;}
   knob.style.transform=`translate(${dx}px,${dy}px)`;
-  if(d>r.width*.1){const k=Math.abs(dx)>Math.abs(dy)?(dx>0?'R':'L'):(dy>0?'D':'U');
+  joyLive=d>r.width*.1;
+  if(joyLive){const k=Math.abs(dx)>Math.abs(dy)?(dx>0?'R':'L'):(dy>0?'D':'U');
     if(S.state==='title')return;steer(k);}
 }
 joy.addEventListener('pointerdown',e=>{e.preventDefault();audio();if(S.state==='title'){start();}
   joyId=e.pointerId;joy.setPointerCapture(e.pointerId);joy.classList.add('drag');joyMove(e);});
 joy.addEventListener('pointermove',e=>{if(e.pointerId===joyId)joyMove(e);});
-const joyEnd=e=>{if(e.pointerId!==joyId)return;joyId=null;joy.classList.remove('drag');knob.style.transform='';};
-joy.addEventListener('pointerup',joyEnd);joy.addEventListener('pointercancel',joyEnd);
+const joyEnd=e=>{if(e.pointerId!==joyId)return;joyId=null;joyLive=false;joy.classList.remove('drag');knob.style.transform='';};
+joy.addEventListener('pointerup',joyEnd);joy.addEventListener('pointercancel',joyEnd);joy.addEventListener('lostpointercapture',joyEnd);
+addEventListener('blur',()=>{joyId=null;joyLive=false;joy.classList.remove('drag');knob.style.transform='';});
 
 /* ---------- Updates ---------- */
 const NATIVE=window.WPMNative||null,upd=$('updStatus');
